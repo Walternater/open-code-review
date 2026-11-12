@@ -821,3 +821,41 @@ func TestBuildGrepArgs_NoIndex(t *testing.T) {
 	assertContains(t, args, "--exclude-standard")
 	assertNotContains(t, args, "--untracked")
 }
+
+func TestCodeSearch_StringBooleanArgs(t *testing.T) {
+	dir := setupTestRepo(t)
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("foo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"add", "."}, {"commit", "-q", "-m", "add fixture"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+
+	p := NewCodeSearch(&FileReader{RepoDir: dir, Mode: ModeWorkspace})
+
+	// A string-typed "true" must behave like the bool, not like the zero value.
+	got, err := p.Execute(context.Background(), map[string]any{"search_text": "FOO", "case_sensitive": "true"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "No matches found") {
+		t.Errorf("case_sensitive=%q matched %q, want no matches", "true", got)
+	}
+
+	got, err = p.Execute(context.Background(), map[string]any{"search_text": "FOO", "case_sensitive": "false"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "foo") {
+		t.Errorf("case_sensitive=%q did not match foo: %q", "false", got)
+	}
+
+	if _, err := p.Execute(context.Background(), map[string]any{"search_text": "FOO", "case_sensitive": "yes"}); err == nil ||
+		!strings.Contains(err.Error(), "case_sensitive must be a boolean") {
+		t.Errorf("invalid boolean error = %v, want parse error", err)
+	}
+}

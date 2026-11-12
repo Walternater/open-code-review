@@ -367,3 +367,29 @@ func TestFileFind_NonASCIIPath(t *testing.T) {
 		})
 	}
 }
+
+func TestFileFind_StringBooleanArgs(t *testing.T) {
+	dir := setupTestRepo(t)
+	p := NewFileFind(&FileReader{RepoDir: dir, Mode: ModeWorkspace})
+
+	got, err := p.Execute(context.Background(), map[string]any{"query_name": "HELLO", "case_sensitive": "true"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "The file was not found") {
+		t.Errorf("case_sensitive=%q matched %q, want no match", "true", got)
+	}
+
+	got, err = p.Execute(context.Background(), map[string]any{"query_name": "HELLO", "case_sensitive": "false"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "hello.go") {
+		t.Errorf("case_sensitive=%q did not match hello.go: %q", "false", got)
+	}
+
+	if _, err := p.Execute(context.Background(), map[string]any{"query_name": "HELLO", "case_sensitive": "yes"}); err == nil ||
+		!strings.Contains(err.Error(), "case_sensitive must be a boolean") {
+		t.Errorf("invalid boolean error = %v, want parse error", err)
+	}
+}

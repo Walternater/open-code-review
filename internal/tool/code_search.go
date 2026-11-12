@@ -39,8 +39,14 @@ func (p *CodeSearchProvider) Execute(ctx context.Context, args map[string]any) (
 
 func (p *CodeSearchProvider) execute(ctx context.Context, args map[string]any) (string, error) {
 	searchText, _ := args["search_text"].(string)
-	caseSensitive, _ := args["case_sensitive"].(bool)
-	usePerlRegexp, _ := args["use_perl_regexp"].(bool)
+	caseSensitive, _, err := boolToolArg(args, "case_sensitive")
+	if err != nil {
+		return "", err
+	}
+	usePerlRegexp, _, err := boolToolArg(args, "use_perl_regexp")
+	if err != nil {
+		return "", err
+	}
 
 	filePatternsIface, _ := args["file_patterns"].([]any)
 	var patterns []string
